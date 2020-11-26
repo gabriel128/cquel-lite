@@ -5,6 +5,15 @@ ExecuteResult execute_insert(Statement* statement, Table* table) {
     return EXECUTE_TABLE_FULL;
   }
 
+  if (statement->row_to_insert.id < 0) {
+    return EXECUTE_VALIDATION_FAILURE;
+  }
+
+  if (strlen(statement->row_to_insert.username) >  COLUMN_USERNAME_SIZE
+      || strlen(statement->row_to_insert.email) >  COLUMN_EMAIL_SIZE) {
+    return EXECUTE_VALIDATION_FAILURE;
+  }
+
   Row* row_to_insert = &(statement->row_to_insert);
 
   serialize_row(row_to_insert, row_slot(table, table->num_rows));
@@ -37,8 +46,9 @@ ExecuteResult execute_statement(Statement* statement, Table* table) {
 PrepareResult prepare_statement(InputBuffer* input_buffer, Statement* statement) {
   if (strncmp(input_buffer->buffer, "insert", 6) == 0) {
     statement->type = STATEMENT_INSERT;
+    // %s avoids buffer overflow
     int args_count = sscanf(input_buffer->buffer,
-                            "insert %d %s %s",
+                            "insert %d %255s %255s",
                             &(statement->row_to_insert.id),
                             statement->row_to_insert.username,
                             statement->row_to_insert.email);

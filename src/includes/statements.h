@@ -16,6 +16,7 @@ typedef enum {
 
 typedef enum {
   EXECUTE_TABLE_FULL,
+  EXECUTE_VALIDATION_FAILURE,
   EXECUTE_SUCCESS,
   EXECUTE_FAILURE
 } ExecuteResult;

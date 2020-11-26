@@ -81,6 +81,9 @@ int main() {
         case EXECUTE_TABLE_FULL:
           printf("Error: Table Full.\n");
           break;
+        case EXECUTE_VALIDATION_FAILURE:
+          printf("Error: Validation Failure.\n");
+          break;
         case EXECUTE_FAILURE:
           printf("Error: Failure.\n");
           break;

@@ -32,6 +32,9 @@ clean:
 		find . -name "*.gc*" -exec rm {} \;
 		rm -rf `find . -name "*.dSYM" -print`
 
+test:
+		rspec spec/tests.rb
+
 # The Checker
 check:
 		@echo Files with potentially dangerous functions.
