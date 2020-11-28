@@ -1,6 +1,7 @@
 #include "includes/statements.h"
 
 ExecuteResult execute_insert(Statement* statement, Table* table) {
+
   if (table->num_rows >= TABLE_MAX_ROWS) {
     return EXECUTE_TABLE_FULL;
   }

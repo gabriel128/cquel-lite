@@ -3,14 +3,16 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "cquel.h"
+#include "pager.h"
 
 typedef struct {
   uint32_t num_rows;
-  void* pages[TABLE_MAX_PAGES];
+  Pager* pager;
 } Table;
 
-Table* new_table();
-void free_table(Table* table);
+Table* db_open(const char* filename);
+void db_close(Table* table);
 
 #endif

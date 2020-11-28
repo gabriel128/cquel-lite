@@ -12,7 +12,7 @@
 
 
 InputBuffer* new_input_buffer() {
-  InputBuffer* input_buffer = (InputBuffer*) calloc(1, sizeof(InputBuffer));
+  InputBuffer* input_buffer = (InputBuffer*) malloc(sizeof(InputBuffer));
   input_buffer->buffer = NULL;
   input_buffer->buffer_length = 0;
   input_buffer->input_length = 0;
@@ -42,8 +42,14 @@ void close_input_buffer(InputBuffer* ib) {
 }
 
 
-int main() {
-  Table* table = new_table();
+int main(int argc, char** argv) {
+  if (argc < 2) {
+    printf("Needs database file");
+    exit(EXIT_FAILURE);
+  }
+
+  char* filename = argv[1];
+  Table* table = db_open(filename);
   InputBuffer* input_buffer = new_input_buffer();
 
   while(true) {
@@ -51,7 +57,7 @@ int main() {
     read_input(input_buffer);
 
     if (input_buffer->buffer[0] == '.') {
-      switch (do_meta_command(input_buffer)) {
+      switch (do_meta_command(input_buffer, table)) {
       case (META_COMMAND_SUCCESS):
         continue;
       case (META_COMMAND_UNRECOGNIZED_COMMAND):

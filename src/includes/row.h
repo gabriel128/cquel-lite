@@ -7,7 +7,9 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
+
 #include "cquel.h"
+#include "pager.h"
 #include "table.h"
 
 #define COLUMN_USERNAME_SIZE 32
@@ -19,15 +21,6 @@ typedef struct {
   char email[COLUMN_EMAIL_SIZE + 1];
 } Row;
 
-extern const size_t ID_SIZE;
-extern const size_t USERNAME_SIZE;
-extern const size_t EMAIL_SIZE;
-extern const uint32_t ID_OFFSET;
-extern const uint32_t USERNAME_OFFSET;
-extern const uint32_t EMAIL_OFFSET;
-extern const size_t ROW_SIZE;
-extern const uint32_t ROWS_PER_PAGE;
-extern const uint32_t TABLE_MAX_ROWS;
 
 void print_row(Row* row);
 void serialize_row(Row* source, void* destination);
