@@ -1,16 +1,16 @@
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <assert.h>
-#include "includes/table.h"
-#include "includes/row.h"
-#include "includes/meta_commands.h"
-#include "includes/statements.h"
 #include "includes/cquel.h"
+#include "includes/pager.h"
+#include "includes/table.h"
+#include "includes/statements.h"
 
-
+MetaCommandResult do_meta_command(InputBuffer* input_buffer, Table* table) {
+  if (strcmp(input_buffer->buffer, ".exit") == 0) {
+    db_close(table);
+    exit(EXIT_SUCCESS);
+  } else {
+    return META_COMMAND_UNRECOGNIZED_COMMAND;
+  }
+}
 InputBuffer* new_input_buffer() {
   InputBuffer* input_buffer = (InputBuffer*) malloc(sizeof(InputBuffer));
   input_buffer->buffer = NULL;
@@ -44,7 +44,7 @@ void close_input_buffer(InputBuffer* ib) {
 
 int main(int argc, char** argv) {
   if (argc < 2) {
-    printf("Needs database file");
+    printf("Needs database file\n");
     exit(EXIT_FAILURE);
   }
 

@@ -3,6 +3,12 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
 
 #define size_of_attr(Struct, Attr) sizeof(((Struct*)0)->Attr)
 
@@ -15,6 +21,11 @@ typedef struct {
   ssize_t input_length;
 } InputBuffer;
 
+typedef enum {
+  META_COMMAND_SUCCESS,
+  META_COMMAND_UNRECOGNIZED_COMMAND
+} MetaCommandResult;
+
 extern const size_t ID_SIZE;
 extern const size_t USERNAME_SIZE;
 extern const size_t EMAIL_SIZE;
@@ -24,5 +35,6 @@ extern const uint32_t EMAIL_OFFSET;
 extern const size_t ROW_SIZE;
 extern const uint32_t ROWS_PER_PAGE;
 extern const uint32_t TABLE_MAX_ROWS;
+
 
 #endif

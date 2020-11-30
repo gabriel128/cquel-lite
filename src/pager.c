@@ -4,17 +4,21 @@
 #include <unistd.h>
 
 Pager* pager_open(const char* filename) {
-  int fd = open(filename, O_RDWR | O_CREAT, S_IWUSR | S_IRUSR);
+  FILE* fp = fopen(filename, "rb+");
 
-  if (fd == -1) {
+  if (fp == NULL) {
     printf("Unable to open file %s\n", filename);
     exit(EXIT_FAILURE);
   }
 
-  off_t file_length = lseek(fd, 0, SEEK_END);
+  fseek(fp, 0, SEEK_END);
+  off_t file_length = ftell(fp);
+  fseek(fp, 0, SEEK_SET);
+
+  printf("File size %ld\n", file_length);
 
   Pager* pager = malloc(sizeof(Pager));
-  pager->fd = fd;
+  pager->fp = fp;
   pager->file_length = file_length;
 
   for(uint32_t i = 0; i < TABLE_MAX_PAGES; i++) {
@@ -36,10 +40,10 @@ void* get_page(Pager* pager, uint32_t page_num) {
     uint32_t num_pages = pager->file_length / PAGE_SIZE;
 
     if (page_num <= num_pages) {
-      lseek(pager->fd, page_num * PAGE_SIZE, SEEK_SET);
-      ssize_t bytes_read = read(pager->fd, page, PAGE_SIZE);
+      fseek(pager->fp, page_num * PAGE_SIZE, SEEK_SET);
+      fread(page, PAGE_SIZE, 1, pager->fp);
 
-      if (bytes_read == -1) {
+      if (ferror(pager->fp)) {
         printf("Error reading page\n");
         exit(EXIT_FAILURE);
       }
@@ -53,25 +57,25 @@ void* get_page(Pager* pager, uint32_t page_num) {
   return pager->pages[page_num];
 }
 
-void flush_page(Pager* pager, uint32_t page_num) {
-
-  printf("page num %u\n", page_num);
-
+void flush_page(Pager* pager, uint32_t page_num, uint32_t size) {
   if (pager->pages[page_num] == NULL)  {
     printf("Tried to flush a null page\n");
     exit(EXIT_FAILURE);
   }
 
-  off_t offset = lseek(pager->fd, page_num * PAGE_SIZE, SEEK_SET);
+  printf("Flushing page_num %d\n", page_num);
+  off_t offset = fseek(pager->fp, page_num * PAGE_SIZE, SEEK_SET);
+
+  printf("Offset writing %ld\n", offset);
 
   if (offset == -1) {
     printf("Error on seek\n");
     exit(EXIT_FAILURE);
   }
 
-  ssize_t bytes_written = write(pager->fd, pager->pages[page_num], PAGE_SIZE);
+  size_t bytes_written = fwrite(pager->pages[page_num], size, 1, pager->fp);
 
-  if (bytes_written == -1) {
+  if (bytes_written <= 0) {
     printf("Error on flushing page\n");
     exit(EXIT_FAILURE);
   }

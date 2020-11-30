@@ -30,7 +30,6 @@ ExecuteResult execute_select(__attribute__((unused)) Statement* statement, Table
     print_row(&row);
   }
 
-
   return EXECUTE_SUCCESS;
 }
 ExecuteResult execute_statement(Statement* statement, Table* table) {

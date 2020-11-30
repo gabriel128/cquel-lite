@@ -1,7 +1,7 @@
 #ifndef __statements_header__
 #define __statements_header__
 
-#include "row.h"
+#include "table.h"
 
 typedef enum {
   PREPARE_SUCCESS,
