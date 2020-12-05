@@ -65,10 +65,13 @@ void flush_page(Page page, PageHeader* header, Pager* pager) {
     return;
   }
 
+  memcpy(page, header, sizeof(PageHeader)); // ensure page has the  latest header
+
   FILE* fp = pager->fp;
 
   printf("First Page offset is %ld\n", FIRST_PAGE_OFFSET);
   printf("Writting in page offset %d, page number %d\n", page_position(header), header->page_id);
+
 
   fseek(fp, page_position(header), SEEK_SET);
   size_t bytes_written = fwrite(page, PAGE_SIZE, 1, fp);
@@ -79,17 +82,19 @@ void flush_page(Page page, PageHeader* header, Pager* pager) {
   }
 }
 
-void fetch_page(Pager* pager, PageHeader* page_header, LinePointer* line_pointer, uint32_t page_id) {
-  Page page_read;
+uint32_t line_pointers_qty(PageHeader* header) {
+  return (header->lower_limit - sizeof(PageHeader)) / sizeof(LinePointer);
+}
 
+void fetch_page(Page page, Pager* pager, PageHeader* page_header, LinePointer* line_pointer, uint32_t page_id) {
   uint32_t page_offset = page_position_by_id(page_id);
   FILE* fp = pager->fp;
 
   fseek(fp, page_offset, SEEK_SET);
-  fread(page_read, PAGE_SIZE, 1, fp);
+  fread(page, PAGE_SIZE, 1, fp);
 
-  memcpy(page_header, page_read, sizeof(PageHeader));
-  memcpy(line_pointer, page_read + page_header->lower_limit, sizeof(LinePointer));
+  memcpy(page_header, page, sizeof(PageHeader));
+  memcpy(line_pointer, page + sizeof(PageHeader), sizeof(LinePointer)*line_pointers_qty(page_header));
 }
 
 uint32_t get_free_page_space(PageHeader* header) {
@@ -100,71 +105,102 @@ uint32_t get_free_page_space(PageHeader* header) {
   }
 }
 
-/* LinePointer* line_pointer_root_from_page(Page page) { */
-/*   return (header->lower_limit - sizeof(PageHeader)) / sizeof(LinePointer); */
-/* } */
-
-uint32_t line_pointers_qty(PageHeader* header) {
-  return (header->lower_limit - sizeof(PageHeader)) / sizeof(LinePointer);
+uint32_t page_has_space_for(PageHeader* header, size_t nbytes) {
+  return get_free_page_space(header) >= nbytes;
 }
 
-/* ResultSet read_rows(Page page, LinePointer* lp) { */
-/*   Page page_read; */
+LinePointer* line_pointer_root_from_page(Page page) {
+  return (LinePointer*)(page + sizeof(LinePointer));
+}
 
-/*   uint32_t page_offset = page_position_by_id(page_id); */
-/*   FILE* fp = pager->fp; */
+ResultSet* read_rows(Page page, LinePointer* lp, PageHeader* header) {
+  ResultSet* result = calloc(1, sizeof(ResultSet));
+  result->num_tuples = line_pointers_qty(header);
+  result->tuples = calloc(result->num_tuples, sizeof(Tuple));
 
-/*   fseek(fp, page_offset, SEEK_SET); */
-/*   fread(page_read, PAGE_SIZE, 1, fp); */
+  for(size_t i = 0; i < result->num_tuples; i++) {
+    unsigned int tuple_offset = lp[i].tuple_offset;
+    result->tuples[i] = *((Tuple*)(page + tuple_offset));
+  }
 
-/*   /\* memcpy(&read_row, FIRST_PAGE_OFFSET + page_read + read_lp.tuple_offset, read_lp.tuple_length); *\/ */
+  return result;
+}
 
+bool insert_row(Page page, PageHeader* page_header, char* data) {
+  if (!page_has_space_for(page_header, sizeof(Tuple)+ sizeof(LinePointer))) {
+    printf("Not enough space for tuple \n");
 
-/* } */
+    return false;
+  }
 
+  unsigned long tuple_offset = page_header->upper_limit - sizeof(Tuple);
+  LinePointer lp = {tuple_offset, 0x00, sizeof(Tuple)};
+
+  TupleHeader tuple_header = {page_header->page_id, line_pointers_qty(page_header)};
+
+  Tuple row;
+  row.header = tuple_header;
+  row.id = tuple_header.lp_offset;
+  strncpy(row.data, data, strnlen(data, TUPLE_SIZE));
+
+  memcpy(page + lp.tuple_offset, &row, lp.tuple_length); // cpy rows */
+  page_header->upper_limit -= sizeof(Tuple);
+
+  memcpy(page + page_header->lower_limit, &lp, sizeof(LinePointer)); // cpy lps
+  page_header->lower_limit += sizeof(LinePointer);
+
+  page_header->dirty = true;
+
+  return true;
+}
+
+void print_tuple(Tuple *row) {
+  printf("Tuple data: %s, id: %d, row header offset: %d\n", row->data, row->id, row->header.lp_offset);
+}
+
+void size_of_stuff() {
+  printf("Size of line pointer %zu\n", sizeof(LinePointer));
+  printf("Size of bool %zu\n", sizeof(bool));
+  printf("Size of uint32 %zu\n", sizeof(uint32_t));
+  printf("Size of page header %zu\n", sizeof(PageHeader));
+  printf("Size of page header %zu\n", sizeof(Tuple));
+}
 
 void learning(Table* table) {
-  /* printf("Size of line pointer %zu\n", sizeof(LinePointer)); */
-  /* printf("Size of bool %zu\n", sizeof(bool)); */
-  /* printf("Size of uint32 %zu\n", sizeof(uint32_t)); */
-  /* printf("Size of page header %zu\n", sizeof(PageHeader)); */
-  /* printf("Size of page header %zu\n", sizeof(Tuple)); */
-
   PageHeader page_header = new_page_header(*table);
-  TupleHeader rhd = {1, 0};
-  Tuple row = {rhd, 1, "I'm a lot of data"};
+
   Page page;
   initialize_page(page);
 
-  unsigned long tuple_offset = PAGE_SIZE - sizeof(Tuple);
-  LinePointer lp = {tuple_offset, 0x00, sizeof(Tuple)};
+  for(int i = 0; i < 30; i++)
+    insert_row(page, &page_header, "Blah");
 
-  page_header.lower_limit = page_header.lower_limit + sizeof(LinePointer);
-  page_header.upper_limit = page_header.upper_limit - sizeof(Tuple);
-
-  memcpy(page, &page_header, sizeof(PageHeader)); // cpy Header
-  memcpy(page + page_header.lower_limit, &lp, sizeof(LinePointer)); // cpy lps
-  memcpy(page + lp.tuple_offset, &row, lp.tuple_length); // cpy rows */
-
-  page_header.dirty = true;
-
-  /* flush_page(page, &page_header, table->pager); */
+  flush_page(page, &page_header, table->pager);
 
   PageHeader* read_header = malloc(sizeof(PageHeader));
-  LinePointer* read_lp = malloc(sizeof(LinePointer));
+  LinePointer* read_lp = malloc(sizeof(LinePointer)*line_pointers_qty(read_header));
 
-  fetch_page(table->pager, read_header, read_lp, 0);
-  /* Tuple read_row; */
+  Page read_page;
+  initialize_page(read_page);
+
+  fetch_page(read_page, table->pager, read_header, read_lp, 0);
+
+  ResultSet* result = read_rows(read_page, read_lp, read_header);
+
+  for (size_t i = 0; i < result->num_tuples; i++) {
+    Tuple read_row = result->tuples[i];
+    print_tuple(&read_row);
+  }
 
   printf("Free space: %d \n", get_free_page_space(read_header));
   printf("LinePointer qty: %d \n", line_pointers_qty(read_header));
-
   printf("Page header page_id: %d, page_full: %d, ll: %d, ul: %d \n", read_header->page_id, read_header->page_full, read_header->lower_limit, read_header->upper_limit);
-  printf("LinePointer tuple_offset: %d, flags: %x, tuple_length: %d\n",
-         read_lp->tuple_offset, read_lp->flags, read_lp->tuple_length);
-  /* printf("First Tuple data: %s, id: %d, row header offset: %d\n", */
-  /*        read_row.data, read_row.id, read_row.header.lp_offset); */
+  /* printf("LinePointer tuple_offset: %d, flags: %x, tuple_length: %d\n", */
+  /*        read_lp->tuple_offset, read_lp->flags, read_lp->tuple_length); */
+  printf("LinePointer 2 tuple_offset: %d, flags: %x, tuple_length: %d\n",
+         (read_lp + 1)->tuple_offset, (read_lp + 1)->flags, (read_lp + 1)->tuple_length);
 
+  free(result);
   free(read_header);
   free(read_lp);
   fclose(table->pager->fp);

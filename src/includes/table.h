@@ -5,8 +5,8 @@
 #include "pager.h"
 
 typedef struct {
-  Tuple* tuple;
-  size_t num_tuples;
+  Tuple* tuples;
+  uint32_t num_tuples;
 } ResultSet;
 
 typedef struct {
