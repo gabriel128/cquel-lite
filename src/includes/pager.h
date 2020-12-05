@@ -32,7 +32,7 @@
 
 typedef unsigned char byte;
 
-typedef byte Page[PAGE_SIZE];
+typedef byte Page;
 
 typedef struct {
   uint32_t page_id;

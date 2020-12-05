@@ -13,7 +13,7 @@ const uint32_t TABLE_MAX_ROWS = ROWS_PER_PAGE * TABLE_MAX_PAGES;
 
 Table* db_open(char* filename) {
   Pager* pager = pager_open(filename);
-  Table* table = malloc(sizeof(Table));
+  Table* table = calloc(1, sizeof(Table));
 
   table->pager = pager;
   table->num_rows = pager->file_length / ROW_SIZE;
