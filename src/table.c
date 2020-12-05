@@ -11,14 +11,26 @@ const size_t ROW_SIZE = ID_SIZE + USERNAME_SIZE + EMAIL_SIZE;
 const uint32_t ROWS_PER_PAGE = PAGE_SIZE / ROW_SIZE;
 const uint32_t TABLE_MAX_ROWS = ROWS_PER_PAGE * TABLE_MAX_PAGES;
 
-Table* db_open(const char* filename) {
+Table* db_open(char* filename) {
   Pager* pager = pager_open(filename);
   Table* table = malloc(sizeof(Table));
 
   table->pager = pager;
   table->num_rows = pager->file_length / ROW_SIZE;
 
-  printf("Initial Num of rows %u\n", table->num_rows);
+  // TODO read header from file
+  TableHeader t_header;
+
+  if (FIRST_PAGE_OFFSET > pager->file_length) {
+    t_header.page_qty = 0;
+  } else {
+    t_header.page_qty = (pager->file_length - FIRST_PAGE_OFFSET) / PAGE_SIZE;
+  }
+  t_header.table_name = filename;
+
+  table->header = t_header;
+
+  printf("Table Name: %s\n", table->header.table_name);
   return table;
 }
 
@@ -29,7 +41,7 @@ void db_close(Table* table) {
   // Ensure that when we close the db everything has been flushed
   for (uint32_t i = 0; i < num_full_pages; i++) {
     if(pager->pages[i] != NULL) {
-      flush_page(pager, i, PAGE_SIZE);
+      flush_page_old(pager, i, PAGE_SIZE);
       free(pager->pages[i]);
       pager->pages[i] = NULL;
     }
@@ -41,7 +53,7 @@ void db_close(Table* table) {
     uint32_t page_num = num_full_pages;
     if (pager->pages[page_num] != NULL) {
 
-      flush_page(pager, page_num, num_additional_rows * ROW_SIZE);
+      flush_page_old(pager, page_num, num_additional_rows * ROW_SIZE);
 
       free(pager->pages[page_num]);
       pager->pages[page_num] = NULL;
@@ -73,7 +85,15 @@ void deserialize_row(void* source, Row* destination) {
   memcpy(&(destination->email), (uint8_t*)source + EMAIL_OFFSET, EMAIL_SIZE);
 }
 
-void* row_slot(Table* table, uint32_t row_num) {
+void* insert_row_slot(Table* table, uint32_t row_num) {
+
+  /* page->header.num_rows++; */
+  /* uint32_t row_offset = row_num % ROWS_PER_PAGE; */
+  /* uint32_t byte_offset = row_offset * ROW_SIZE; */
+  /* return (uint8_t*)page + sizeof(PageHeader) + byte_offset; */
+}
+
+void* read_row_slot(Table* table, uint32_t row_num) {
   uint32_t page_num = row_num / ROWS_PER_PAGE;
   void* page = get_page(table->pager, page_num);
   uint32_t row_offset = row_num % ROWS_PER_PAGE;

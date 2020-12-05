@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 Pager* pager_open(const char* filename) {
+
   FILE* fp = fopen(filename, "rb+");
 
   if (fp == NULL) {
@@ -17,10 +18,19 @@ Pager* pager_open(const char* filename) {
 
   printf("File size %ld\n", file_length);
 
+  /* fclose(fp_r); */
+
+  /* FILE* fp = fopen(filename, "rb+"); */
+  /* FILE* fp = fopen(filename, "w+"); */
+
+  /* if (fp == NULL) { */
+  /*   printf("Unable to open file %s\n", filename); */
+  /*   exit(EXIT_FAILURE); */
+  /* } */
+
   Pager* pager = malloc(sizeof(Pager));
   pager->fp = fp;
   pager->file_length = file_length;
-
   for(uint32_t i = 0; i < TABLE_MAX_PAGES; i++) {
     pager->pages[i] = NULL;
   }
@@ -28,7 +38,16 @@ Pager* pager_open(const char* filename) {
   return pager;
 }
 
-void* get_page(Pager* pager, uint32_t page_num) {
+uint32_t page_position(PageHeader* header) {
+  return FIRST_PAGE_OFFSET + (header->page_id * PAGE_SIZE);
+}
+
+uint32_t page_position_by_id(uint32_t page_id) {
+  return FIRST_PAGE_OFFSET + (page_id * PAGE_SIZE);
+}
+
+
+Page* get_page(Pager* pager, uint32_t page_num) {
   if (page_num > TABLE_MAX_PAGES || ((page_num * PAGE_SIZE) > pager->file_length)) {
     printf("Out of bonds page\n");
     exit(EXIT_FAILURE);
@@ -36,7 +55,7 @@ void* get_page(Pager* pager, uint32_t page_num) {
 
   if (pager->pages[page_num] == NULL) {
     // Cache miss
-    void* page = malloc(PAGE_SIZE);
+    Page* page = malloc(PAGE_SIZE);
     uint32_t num_pages = pager->file_length / PAGE_SIZE;
 
     if (page_num <= num_pages) {
@@ -57,7 +76,7 @@ void* get_page(Pager* pager, uint32_t page_num) {
   return pager->pages[page_num];
 }
 
-void flush_page(Pager* pager, uint32_t page_num, uint32_t size) {
+void flush_page_old(Pager* pager, uint32_t page_num, uint32_t size) {
   if (pager->pages[page_num] == NULL)  {
     printf("Tried to flush a null page\n");
     exit(EXIT_FAILURE);

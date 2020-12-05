@@ -13,7 +13,21 @@
 #define size_of_attr(Struct, Attr) sizeof(((Struct*)0)->Attr)
 
 #define TABLE_MAX_PAGES 100
-#define PAGE_SIZE 4096
+
+#define COLUMN_USERNAME_SIZE 32
+#define COLUMN_EMAIL_SIZE 255
+#define TABLE_NAME_SIZE 30
+
+typedef struct {
+  uint32_t page_qty;
+  char* table_name;
+} TableHeader;
+
+typedef struct {
+  int id;
+  char username[COLUMN_USERNAME_SIZE + 1];
+  char email[COLUMN_EMAIL_SIZE + 1];
+} Row;
 
 typedef struct {
   char* buffer;
