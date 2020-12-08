@@ -1,5 +1,6 @@
 #include "includes/cquel.h"
-#include "includes/pager.h"
+/* #include "includes/pager.h" */
+/* #include "includes/tuples.h" */
 #include "includes/table.h"
 #include "includes/statements.h"
 
@@ -41,190 +42,31 @@ void close_input_buffer(InputBuffer* ib) {
   free(ib);
 }
 
-PageHeader new_page_header(Table table) {
-  printf("Page qty was %d\n", table.header.page_qty);
-  PageHeader page_header = {
-    .page_id = table.header.page_qty,
-    .dirty = false,
-    .lower_limit = sizeof(PageHeader),
-    .upper_limit = PAGE_SIZE,
-  };
-
-  return page_header;
-}
-
-/* void initialize_page(Page page) { */
-/*   for (size_t i = 0; i < PAGE_SIZE; i++) { */
-/*     page[i] = 0; */
-/*   } */
-/* } */
-
-Page* new_raw_page() {
-  Page* raw_page = calloc(1, PAGE_SIZE);
-  return raw_page;
-}
-
-void flush_page(Page* page, PageHeader* header, Pager* pager) {
-  if(!(header->dirty)) {
-    printf("Tried to Flush a non dirty page %ld\n", FIRST_PAGE_OFFSET);
-    return;
-  }
-
-  if(page == NULL) {
-    printf("Tried to Flush a null page \n");
-    exit(EXECUTE_FAILURE);
-  }
-
-  memcpy(page, header, sizeof(PageHeader)); // ensure page has the  latest header
-
-  FILE* fp = pager->fp;
-
-  fseek(fp, page_position(header), SEEK_SET);
-  size_t bytes_written = fwrite(page, PAGE_SIZE, 1, fp);
-
-  if (bytes_written <= 0) {
-    printf("Error on flushing page to disk\n");
-    exit(EXIT_FAILURE);
-  }
-}
-
-uint32_t line_pointers_qty(PageHeader* header) {
-  return (header->lower_limit - sizeof(PageHeader)) / sizeof(LinePointer);
-}
-
-void fetch_page(Page* page, Pager* pager, PageHeader* page_header, LinePointer* line_pointer, uint32_t page_id) {
-  if(page == NULL) {
-    printf("Tried to fetch a null page \n");
-    exit(EXECUTE_FAILURE);
-  }
-
-  uint32_t page_offset = page_position_by_id(page_id);
-  FILE* fp = pager->fp;
-
-  fseek(fp, page_offset, SEEK_SET);
-  fread(page, PAGE_SIZE, 1, fp);
-
-  memcpy(page_header, page, sizeof(PageHeader));
-  memcpy(line_pointer, page + sizeof(PageHeader), sizeof(LinePointer)*line_pointers_qty(page_header));
-}
-
-uint32_t get_free_page_space(PageHeader* header) {
-  if (header->lower_limit > header->upper_limit) {
-    return 0;
-  } else {
-    return header->upper_limit - header->lower_limit;
-  }
-}
-
-uint32_t page_has_space_for(PageHeader* header, size_t nbytes) {
-  return get_free_page_space(header) >= nbytes;
-}
-
-LinePointer* line_pointer_root_from_page(Page page) {
-  return (LinePointer*)(page + sizeof(LinePointer));
-}
-
-Tuple* read_tuple_from_lp(Page* page, LinePointer* lp) {
-  if(page == NULL) {
-    printf("Tried to read tuple from null page \n");
-    exit(EXECUTE_FAILURE);
-  }
-
-  Tuple* tuple = calloc(1, sizeof(Tuple));
-
-  unsigned int tuple_offset = lp->tuple_offset;
-  tuple = ((Tuple*)(page + tuple_offset));
-
-  return tuple;
-}
-
-void free_result_set(ResultSet* result) {
-  free(result->tuples);
-  free(result);
-}
-
-ResultSet* read_all_tuples(Page* page, LinePointer* lp, PageHeader* header) {
-  if(page == NULL) {
-    printf("Tried to read all tuples from null page \n");
-    exit(EXECUTE_FAILURE);
-  }
-
-  ResultSet* result = calloc(1, sizeof(ResultSet));
-  result->num_tuples = line_pointers_qty(header);
-  result->tuples = calloc(result->num_tuples, sizeof(Tuple));
-
-  for(size_t i = 0; i < result->num_tuples; i++) {
-    unsigned int tuple_offset = lp[i].tuple_offset;
-    result->tuples[i] = *((Tuple*)(page + tuple_offset));
-  }
-
-  return result;
-}
-
-bool insert_tuple(Page* page, PageHeader* page_header, char* data) {
-  if(page == NULL) {
-    printf("Tried to insert tuple to null page \n");
-    exit(EXECUTE_FAILURE);
-  }
-
-  if (!page_has_space_for(page_header, sizeof(Tuple)+ sizeof(LinePointer))) {
-    printf("Not enough space for tuple \n");
-
-    return false;
-  }
-
-  unsigned long tuple_offset = page_header->upper_limit - sizeof(Tuple);
-  LinePointer lp = {tuple_offset, 0x00, sizeof(Tuple)};
-
-  TupleHeader tuple_header = {page_header->page_id, line_pointers_qty(page_header)};
-
-  Tuple row;
-  row.header = tuple_header;
-  row.id = tuple_header.lp_offset;
-  strncpy(row.data, data, strnlen(data, TUPLE_SIZE));
-
-  memcpy(page + lp.tuple_offset, &row, lp.tuple_length); // cpy rows */
-  page_header->upper_limit -= sizeof(Tuple);
-
-  memcpy(page + page_header->lower_limit, &lp, sizeof(LinePointer)); // cpy lps
-  page_header->lower_limit += sizeof(LinePointer);
-
-  page_header->dirty = true;
-
-  return true;
-}
-
-void print_tuple(Tuple *row) {
-  printf("Tuple data: %s, id: %d, row header offset: %d\n", row->data, row->id, row->header.lp_offset);
-}
-
 void size_of_stuff() {
   printf("Size of line pointer %zu\n", sizeof(LinePointer));
+  printf("Size of TableHeader %zu\n", sizeof(TableHeader));
   printf("Size of bool %zu\n", sizeof(bool));
   printf("Size of uint32 %zu\n", sizeof(uint32_t));
-  printf("Size of page header %zu\n", sizeof(PageHeader));
-  printf("Size of page header %zu\n", sizeof(Tuple));
+  printf("Size of Pageheader %zu\n", sizeof(PageHeader));
+  printf("Size of Tuple %zu\n", sizeof(Tuple));
 }
 
-void learning(Table* table) {
-  PageHeader page_header = new_page_header(*table);
+void test(Table* table) {
+  PageHeader* page_header = new_page_header(table->header.page_qty);
 
   Page* page = new_raw_page();
 
   for(int i = 0; i < 30; i++)
-    insert_tuple(page, &page_header, "Blah");
+    insert_tuple(page, page_header, "Blah");
 
-  flush_page(page, &page_header, table->pager);
+  flush_page(page, page_header, table->pager);
 
   free(page);
 
   PageHeader* read_header = calloc(1, sizeof(PageHeader));
   LinePointer* read_lp = calloc(line_pointers_qty(read_header), sizeof(LinePointer));
 
-  Page* read_page = new_raw_page();
-  /* initialize_page(read_page); */
-
-  fetch_page(read_page, table->pager, read_header, read_lp, 0);
+  Page* read_page = fetch_page(table->pager, read_header, read_lp, 0);
 
   ResultSet* result = read_all_tuples(read_page, read_lp, read_header);
 
@@ -250,7 +92,17 @@ void learning(Table* table) {
   free(table);
 }
 
+// TODO
+// - Add buffer pool
+// - Save Table metadata to file
+// - Add column structure
+// - Add row structre with sizes
+// - Handle db creation as a meta command
+// - Deal with multiple tables
+// - Add B-tree indexes
 int main(int argc, char** argv) {
+  /* size_of_stuff(); */
+
   if (argc < 2) {
     printf("Needs database file\n");
     exit(EXIT_FAILURE);
@@ -265,49 +117,49 @@ int main(int argc, char** argv) {
 
   Table* table = db_open(filename);
 
-  learning(table);
-  /* InputBuffer* input_buffer = new_input_buffer(); */
-  /* while(true) { */
-  /*   print_prompt(); */
-  /*   read_input(input_buffer); */
+  InputBuffer* input_buffer = new_input_buffer();
 
-  /*   if (input_buffer->buffer[0] == '.') { */
-  /*     switch (do_meta_command(input_buffer, table)) { */
-  /*     case (META_COMMAND_SUCCESS): */
-  /*       continue; */
-  /*     case (META_COMMAND_UNRECOGNIZED_COMMAND): */
-  /*       printf("Unrecognized Command '%s' .\n", input_buffer->buffer); */
-  /*       continue; */
+  while(true) {
+    print_prompt();
+    read_input(input_buffer);
 
-  /*     } */
-  /*   } */
+    if (input_buffer->buffer[0] == '.') {
+      switch (do_meta_command(input_buffer, table)) {
+      case (META_COMMAND_SUCCESS):
+        continue;
+      case (META_COMMAND_UNRECOGNIZED_COMMAND):
+        printf("Unrecognized Command '%s' .\n", input_buffer->buffer);
+        continue;
 
-  /*   Statement statement; */
+      }
+    }
 
-  /*   switch (prepare_statement(input_buffer, &statement)) { */
-  /*     case PREPARE_SUCCESS: */
-  /*       break; */
-  /*     case PREPARE_UNRECOGNIZED_STATEMENT: */
-  /*       printf("Unrecognized keyword at start of '%s'. \n", input_buffer->buffer); */
-  /*       continue; */
-  /*     case PREPARE_STM_SYNTAX_ERROR: */
-  /*       printf("Syntax Error on '%s'. \n", input_buffer->buffer); */
-  /*       continue; */
-  /*   } */
+    Statement statement;
 
-  /*   switch (execute_statement(&statement, table)) { */
-  /*       case EXECUTE_SUCCESS: */
-  /*         printf("Executed.\n"); */
-  /*         break; */
-  /*       case EXECUTE_TABLE_FULL: */
-  /*         printf("Error: Table Full.\n"); */
-  /*         break; */
-  /*       case EXECUTE_VALIDATION_FAILURE: */
-  /*         printf("Error: Validation Failure.\n"); */
-  /*         break; */
-  /*       case EXECUTE_FAILURE: */
-  /*         printf("Error: Failure.\n"); */
-  /*         break; */
-  /*   } */
-  /* } */
+    switch (prepare_statement(input_buffer, &statement)) {
+      case PREPARE_SUCCESS:
+        break;
+      case PREPARE_UNRECOGNIZED_STATEMENT:
+        printf("Unrecognized keyword at start of '%s'. \n", input_buffer->buffer);
+        continue;
+      case PREPARE_STM_SYNTAX_ERROR:
+        printf("Syntax Error on '%s'. \n", input_buffer->buffer);
+        continue;
+    }
+
+    switch (execute_statement(&statement, table)) {
+        case EXECUTE_SUCCESS:
+          printf("Executed.\n");
+          break;
+        case EXECUTE_TABLE_FULL:
+          printf("Error: Table Full.\n");
+          break;
+        case EXECUTE_VALIDATION_FAILURE:
+          printf("Error: Validation Failure.\n");
+          break;
+        case EXECUTE_FAILURE:
+          printf("Error: Failure.\n");
+          break;
+    }
+  }
 }

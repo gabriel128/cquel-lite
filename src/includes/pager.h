@@ -23,31 +23,18 @@
  *
  */
 
-#define TUPLE_SIZE 256 // 255 + \0
-#define PAGE_SIZE 4096
-
 #define FIRST_PAGE_OFFSET sizeof(TableHeader)
 
 #define FLEXIBLE_ARRAY_MEMBER // Empty
 
-typedef unsigned char byte;
-
 typedef byte Page;
 
 typedef struct {
-  uint32_t page_id;
-  uint32_t lp_offset;
-} TupleHeader;
-
-typedef struct {
-  TupleHeader header;
-  uint32_t id;
-  char data[TUPLE_SIZE];
-} Tuple;
-
-typedef struct {
-  unsigned int tuple_offset:12; // offset of the tuple from beggining of the page
+  // offset of the tuple from beggining of the page
+  unsigned int tuple_offset:12;
+  // Unused atm
   unsigned int flags:2;
+  // length of a given tuple in disk
   unsigned int tuple_length:12;
 } LinePointer;
 
@@ -66,9 +53,54 @@ typedef struct {
 } Pager;
 
 Pager* pager_open(const char* filename);
-Page* get_page(Pager* pager, uint32_t page_num);
-void flush_page_old(Pager* pager, uint32_t page_num, uint32_t size);
-uint32_t page_position(PageHeader* header);
-uint32_t page_position_by_id(uint32_t page_id);
+
+/*
+  Creates a new page raw_page in the heap
+ */
+Page* new_raw_page();
+
+/*
+  Returns the offset of certain Page
+  in the Table File
+ */
+uint32_t page_offset(PageHeader* header);
+
+/*
+  Returns the offset of certain Page
+  in the Table File by page_id
+*/
+uint32_t page_offset_by_id(uint32_t page_id);
+
+/*
+  Creates a new page header in the heap
+ */
+PageHeader* new_page_header(uint32_t ncurrent_pages);
+
+/*
+  Returns the qty of line pointers in a page
+ */
+uint32_t line_pointers_qty(PageHeader* header);
+
+/*
+  Reads a page from disk
+ */
+Page* fetch_page(Pager* pager, PageHeader* page_header, LinePointer* line_pointer, uint32_t page_id);
+
+/*
+  Returns how many free bytes a page has
+ */
+
+uint32_t get_free_page_space(PageHeader* header);
+
+/*
+  Checks if a page has space for N bytes
+ */
+bool page_has_space_for(PageHeader* header, size_t nbytes);
+
+
+/*
+ *  Writes a page back to disk
+ */
+void flush_page(Page* page, PageHeader* header, Pager* pager);
 
 #endif

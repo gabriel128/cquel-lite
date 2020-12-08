@@ -1,34 +1,93 @@
 #include "includes/statements.h"
 
 ExecuteResult execute_insert(Statement* statement, Table* table) {
-
-  if (table->num_rows >= TABLE_MAX_ROWS) {
+  if (table->header.page_qty >= TABLE_MAX_PAGES) {
     return EXECUTE_TABLE_FULL;
   }
 
-  if (statement->row_to_insert.id < 0) {
+  if (strlen(statement->row_to_insert) >  TUPLE_SIZE) {
     return EXECUTE_VALIDATION_FAILURE;
   }
 
-  if (strlen(statement->row_to_insert.username) >  COLUMN_USERNAME_SIZE
-      || strlen(statement->row_to_insert.email) >  COLUMN_EMAIL_SIZE) {
-    return EXECUTE_VALIDATION_FAILURE;
+  // TODO
+  // - Create the concept of BufferPage that contains a Page, PageHeader
+  //   and Line Pointers
+  Page* page;
+  PageHeader* page_header = calloc(1, sizeof(PageHeader));
+  LinePointer* page_lps = calloc(line_pointers_qty(page_header), sizeof(LinePointer));
+
+  if (table->header.page_qty == 0) {
+    printf("[Insert] Inserting new new new Page \n");
+
+    page = new_raw_page();
+    page_header = new_page_header(table->header.page_qty);
+    insert_tuple(page, page_header, statement->row_to_insert);
+    table->header.page_qty += 1;
+
+  } else {
+    page = fetch_page(table->pager, page_header, page_lps, table->header.page_qty-1);
+
+
+    if (page_has_space_for(page_header, sizeof(Tuple))) {
+      insert_tuple(page, page_header, statement->row_to_insert);
+    } else {
+      printf("[Insert] Inserting new Page \n");
+
+      page = new_raw_page();
+      page_header = new_page_header(table->header.page_qty);
+      insert_tuple(page, page_header, statement->row_to_insert);
+      table->header.page_qty += 1;
+    }
   }
 
-  Row* row_to_insert = &(statement->row_to_insert);
+  printf("Free space in current page is: %d \n", get_free_page_space(page_header));
+  printf("Size of a Tuple is: %ld \n", sizeof(Tuple));
+  // Temporarily flushing pages
 
-  serialize_row(row_to_insert, insert_row_slot(table, table->num_rows));
-  table->num_rows += 1;
+  flush_page(page, page_header, table->pager);
+
+  printf("Flushing page_header page_id: %d \n", page_header->page_id);
+
+  if (page != NULL)
+    free(page);
+
+  free(page_header);
+  free(page_lps);
 
   return EXECUTE_SUCCESS;
 }
 
 ExecuteResult execute_select(__attribute__((unused)) Statement* statement, Table* table) {
-  Row row;
-  for (uint32_t i = 0; i < table->num_rows; i++) {
-    deserialize_row(read_row_slot(table, i), &row);
-    print_row(&row);
+  // Temporal until we get a buffer pool
+  PageHeader* header = calloc(1, sizeof(PageHeader));
+  LinePointer* lps = calloc(line_pointers_qty(header), sizeof(LinePointer));
+  Page* page = NULL;
+  ResultSet* result = NULL;
+  printf("Page qty is %d \n", table->header.page_qty);
+
+  for (uint32_t i = 0; i < table->header.page_qty; i++) {
+    printf("i is %d \n", i);
+    page = fetch_page(table->pager, header, lps, i);
+    result = read_all_tuples(page, lps, header);
+
+    for (size_t i = 0; i < result->num_tuples; i++) {
+      Tuple read_row = result->tuples[i];
+      print_tuple(&read_row);
+    }
   }
+
+  if (result == NULL) {
+    printf("No results \n");
+  } else {
+    free_result_set(result);
+  }
+
+  if (page != NULL)
+    free(page);
+
+  free(header);
+  free(lps);
+
 
   return EXECUTE_SUCCESS;
 }
@@ -44,20 +103,25 @@ ExecuteResult execute_statement(Statement* statement, Table* table) {
 }
 
 PrepareResult prepare_statement(InputBuffer* input_buffer, Statement* statement) {
+
   if (strncmp(input_buffer->buffer, "insert", 6) == 0) {
     statement->type = STATEMENT_INSERT;
     // %s avoids buffer overflow
+    /* int args_count = sscanf(input_buffer->buffer, */
+    /*                         "insert %d %255s %255s", */
+    /*                         &(statement->row_to_insert.id), */
+    /*                         statement->row_to_insert.username, */
+    /*                         statement->row_to_insert.email); */
     int args_count = sscanf(input_buffer->buffer,
-                            "insert %d %255s %255s",
-                            &(statement->row_to_insert.id),
-                            statement->row_to_insert.username,
-                            statement->row_to_insert.email);
-    if (args_count < 3) {
+                            "insert %255s",
+                            statement->row_to_insert);
+
+    if (args_count < 1) {
       return PREPARE_STM_SYNTAX_ERROR;
     }
 
     return PREPARE_SUCCESS;
-  } else if (strcmp(input_buffer->buffer, "select") == 0) {
+  } else if (strcmp(input_buffer->buffer, "select_all") == 0) {
     statement->type = STATEMENT_SELECT;
     return PREPARE_SUCCESS;
   } else {

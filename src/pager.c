@@ -4,7 +4,6 @@
 #include <unistd.h>
 
 Pager* pager_open(const char* filename) {
-
   FILE* fp = fopen(filename, "rb+");
 
   if (fp == NULL) {
@@ -18,16 +17,6 @@ Pager* pager_open(const char* filename) {
 
   printf("File size %ld\n", file_length);
 
-  /* fclose(fp_r); */
-
-  /* FILE* fp = fopen(filename, "rb+"); */
-  /* FILE* fp = fopen(filename, "w+"); */
-
-  /* if (fp == NULL) { */
-  /*   printf("Unable to open file %s\n", filename); */
-  /*   exit(EXIT_FAILURE); */
-  /* } */
-
   Pager* pager = malloc(sizeof(Pager));
   pager->fp = fp;
   pager->file_length = file_length;
@@ -38,64 +27,90 @@ Pager* pager_open(const char* filename) {
   return pager;
 }
 
-uint32_t page_position(PageHeader* header) {
+Page* new_raw_page() {
+  Page* raw_page = calloc(1, PAGE_SIZE);
+  return raw_page;
+}
+
+
+uint32_t page_offset(PageHeader* header) {
   return FIRST_PAGE_OFFSET + (header->page_id * PAGE_SIZE);
 }
 
-uint32_t page_position_by_id(uint32_t page_id) {
+uint32_t page_offset_by_id(uint32_t page_id) {
   return FIRST_PAGE_OFFSET + (page_id * PAGE_SIZE);
 }
 
+PageHeader* new_page_header(uint32_t ncurrent_pages) {
+  printf("Page qty was %d\n", ncurrent_pages);
 
-Page* get_page(Pager* pager, uint32_t page_num) {
-  if (page_num > TABLE_MAX_PAGES || ((page_num * PAGE_SIZE) > pager->file_length)) {
-    printf("Out of bonds page\n");
-    exit(EXIT_FAILURE);
-  }
+  PageHeader* page_header = calloc(1, sizeof(PageHeader));
 
-  if (pager->pages[page_num] == NULL) {
-    // Cache miss
-    Page* page = malloc(PAGE_SIZE);
-    uint32_t num_pages = pager->file_length / PAGE_SIZE;
+  page_header->page_id = ncurrent_pages;
+  page_header->dirty = false;
+  page_header->lower_limit = sizeof(PageHeader);
+  page_header->upper_limit = PAGE_SIZE;
 
-    if (page_num <= num_pages) {
-      fseek(pager->fp, page_num * PAGE_SIZE, SEEK_SET);
-      fread(page, PAGE_SIZE, 1, pager->fp);
-
-      if (ferror(pager->fp)) {
-        printf("Error reading page\n");
-        exit(EXIT_FAILURE);
-      }
-    } else {
-      printf("Trying to get non existent page\n");
-      exit(EXIT_FAILURE);
-    }
-    pager->pages[page_num] = page;
-  }
-
-  return pager->pages[page_num];
+  return page_header;
 }
 
-void flush_page_old(Pager* pager, uint32_t page_num, uint32_t size) {
-  if (pager->pages[page_num] == NULL)  {
-    printf("Tried to flush a null page\n");
+void flush_page(Page* page, PageHeader* header, Pager* pager) {
+  if(!(header->dirty)) {
+    printf("Tried to Flush a non dirty page %ld\n", FIRST_PAGE_OFFSET);
+    return;
+  }
+
+  if(page == NULL) {
+    printf("Tried to Flush a null page \n");
     exit(EXIT_FAILURE);
   }
 
-  printf("Flushing page_num %d\n", page_num);
-  off_t offset = fseek(pager->fp, page_num * PAGE_SIZE, SEEK_SET);
+  memcpy(page, header, sizeof(PageHeader)); // ensure page has the  latest header
 
-  printf("Offset writing %ld\n", offset);
+  FILE* fp = pager->fp;
 
-  if (offset == -1) {
-    printf("Error on seek\n");
-    exit(EXIT_FAILURE);
-  }
-
-  size_t bytes_written = fwrite(pager->pages[page_num], size, 1, pager->fp);
+  fseek(fp, page_offset(header), SEEK_SET);
+  size_t bytes_written = fwrite(page, PAGE_SIZE, 1, fp);
 
   if (bytes_written <= 0) {
-    printf("Error on flushing page\n");
+    printf("Error on flushing page to disk\n");
     exit(EXIT_FAILURE);
   }
+}
+
+uint32_t line_pointers_qty(PageHeader* header) {
+  return (header->lower_limit - sizeof(PageHeader)) / sizeof(LinePointer);
+}
+
+Page* fetch_page(Pager* pager, PageHeader* page_header, LinePointer* line_pointer, uint32_t page_id) {
+  Page* page = new_raw_page();
+
+  if(page == NULL) {
+    printf("Tried to fetch a null page \n");
+    exit(EXIT_FAILURE);
+  }
+
+  uint32_t page_offset = page_offset_by_id(page_id);
+  FILE* fp = pager->fp;
+
+  fseek(fp, 0, SEEK_SET);
+  fseek(fp, page_offset, SEEK_SET);
+  fread(page, PAGE_SIZE, 1, fp);
+
+  memcpy(page_header, page, sizeof(PageHeader));
+  memcpy(line_pointer, page + sizeof(PageHeader), sizeof(LinePointer)*line_pointers_qty(page_header));
+
+  return page;
+}
+
+uint32_t get_free_page_space(PageHeader* header) {
+  if (header->lower_limit > header->upper_limit) {
+    return 0;
+  } else {
+    return header->upper_limit - header->lower_limit;
+  }
+}
+
+bool page_has_space_for(PageHeader* header, size_t nbytes) {
+  return get_free_page_space(header) >= nbytes;
 }
