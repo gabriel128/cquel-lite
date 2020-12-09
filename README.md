@@ -17,6 +17,7 @@ Each Table is represented by a collection of 4KB block/pages
 
 In ASCII it would like like the following:
 
+```
 Table structure
  ----------------------------------------------------------
 |               |         |         |           |         |
@@ -38,7 +39,7 @@ Page structure
 +-------------|------------------|-----------------+
 |     ... tuple3 tuple2 tuple1                     |
 +--------------------------------|-----------------+
-
+```
 
 ### Buffer Pool
 
