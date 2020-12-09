@@ -54,17 +54,17 @@ I might do a clock sweep LRU later in the process.
 
 ### Where is this project atm
 
-[x] Table structure
-[x] Page structure
-[x] Tuple insertion
-[x] Select all from a table
-[ ] Cache/Buffer Pool (WIP)
-[ ] Btree indexes
-[ ] Dynamic row/column structure
-[ ] Multiple Tables
-[ ] Concurrent queries and tree locking
-[ ] Moar Queries
-[ ] Multiple DBs
-[ ] Proper SQL parsing
-[ ] Relational modelling
-[ ] Transactions
+- [x] Table structure
+- [x] Page structure
+- [x] Tuple insertion
+- [x] Select all from a table
+- [ ] Cache/Buffer Pool (WIP)
+- [ ] Btree indexes
+- [ ] Dynamic row/column structure
+- [ ] Multiple Tables
+- [ ] Concurrent queries and tree locking
+- [ ] Moar Queries
+- [ ] Multiple DBs
+- [ ] Proper SQL parsing
+- [ ] Relational modelling
+- [ ] Transactions
