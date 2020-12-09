@@ -56,8 +56,16 @@ void test(Table* table) {
 
   Page* page = new_raw_page();
 
-  for(int i = 0; i < 30; i++)
-    insert_tuple(page, page_header, "Blah");
+  for(int i = 0; i < 30; i++) {
+    Tuple tuple;
+    tuple.id = i;
+    tuple.data[0] = 'B';
+    tuple.data[1] = 'l';
+    tuple.data[2] = 'a';
+    tuple.data[3] = 'h';
+    tuple.data[4] = '\0';
+    insert_tuple(page, page_header, tuple);
+  }
 
   flush_page(page, page_header, table->pager);
 
@@ -141,7 +149,6 @@ int main(int argc, char** argv) {
 
     switch (execute_statement(&statement, table)) {
         case EXECUTE_SUCCESS:
-          printf("Executed.\n");
           break;
         case EXECUTE_TABLE_FULL:
           printf("Error: Table Full.\n");

@@ -23,7 +23,7 @@ typedef enum {
 
 typedef struct {
   StatementType type;
-  char row_to_insert[TUPLE_SIZE];
+  Tuple row_to_insert;
 } Statement;
 
 ExecuteResult execute_statement(Statement* statement, Table* table);

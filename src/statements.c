@@ -5,7 +5,7 @@ ExecuteResult execute_insert(Statement* statement, Table* table) {
     return EXECUTE_TABLE_FULL;
   }
 
-  if (strlen(statement->row_to_insert) >  TUPLE_SIZE) {
+  if (strlen(statement->row_to_insert.data) >  TUPLE_SIZE) {
     return EXECUTE_VALIDATION_FAILURE;
   }
 
@@ -17,7 +17,7 @@ ExecuteResult execute_insert(Statement* statement, Table* table) {
   LinePointer* page_lps = calloc(line_pointers_qty(page_header), sizeof(LinePointer));
 
   if (table->header.page_qty == 0) {
-    printf("[Insert] Inserting new new new Page \n");
+    printf("[Log Insert] Inserting new new new Page \n");
 
     page = new_raw_page();
     page_header = new_page_header(table->header.page_qty);
@@ -31,7 +31,7 @@ ExecuteResult execute_insert(Statement* statement, Table* table) {
     if (page_has_space_for(page_header, sizeof(Tuple))) {
       insert_tuple(page, page_header, statement->row_to_insert);
     } else {
-      printf("[Insert] Inserting new Page \n");
+      printf("[Log Insert] Inserting new Page \n");
 
       page = new_raw_page();
       page_header = new_page_header(table->header.page_qty);
@@ -40,13 +40,13 @@ ExecuteResult execute_insert(Statement* statement, Table* table) {
     }
   }
 
-  printf("Free space in current page is: %d \n", get_free_page_space(page_header));
-  printf("Size of a Tuple is: %ld \n", sizeof(Tuple));
+  printf("[Log] Free space in current page is: %d \n", get_free_page_space(page_header));
+  printf("[Log] Size of a Tuple is: %ld \n", sizeof(Tuple));
   // Temporarily flushing pages
 
   flush_page(page, page_header, table->pager);
 
-  printf("Flushing page_header page_id: %d \n", page_header->page_id);
+  printf("[Log] Flushing page with id: %d \n", page_header->page_id);
 
   if (page != NULL)
     free(page);
@@ -63,10 +63,9 @@ ExecuteResult execute_select(__attribute__((unused)) Statement* statement, Table
   LinePointer* lps = calloc(line_pointers_qty(header), sizeof(LinePointer));
   Page* page = NULL;
   ResultSet* result = NULL;
-  printf("Page qty is %d \n", table->header.page_qty);
+  printf("[Log] Page qty is %d \n", table->header.page_qty);
 
   for (uint32_t i = 0; i < table->header.page_qty; i++) {
-    printf("i is %d \n", i);
     page = fetch_page(table->pager, header, lps, i);
     result = read_all_tuples(page, lps, header);
 
@@ -113,8 +112,9 @@ PrepareResult prepare_statement(InputBuffer* input_buffer, Statement* statement)
     /*                         statement->row_to_insert.username, */
     /*                         statement->row_to_insert.email); */
     int args_count = sscanf(input_buffer->buffer,
-                            "insert %255s",
-                            statement->row_to_insert);
+                            "insert %u %255s",
+                            &(statement->row_to_insert.id),
+                            statement->row_to_insert.data);
 
     if (args_count < 1) {
       return PREPARE_STM_SYNTAX_ERROR;

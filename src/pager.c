@@ -15,7 +15,7 @@ Pager* pager_open(const char* filename) {
   off_t file_length = ftell(fp);
   fseek(fp, 0, SEEK_SET);
 
-  printf("File size %ld\n", file_length);
+  printf("[Log] File size %ld\n", file_length);
 
   Pager* pager = malloc(sizeof(Pager));
   pager->fp = fp;

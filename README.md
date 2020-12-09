@@ -51,6 +51,28 @@ grow upwards making `free space = upper_limit - lower_limit`
 Since atm the only thing cquel-lite can do is sequential scans on single tables, the replacement policy is just a modulo of the page_id.
 I might do a clock sweep LRU later in the process.
 
+### Example
+
+No buffer pool yet, so the pages are flushed after every insert
+
+```
+[Log] File size 4112
+[Log] Table Name: test.db
+cquel> insert 4 test4
+[Log] Free space in current page is: 3264
+[Log] Size of a Tuple is: 268
+[Log] Flushing page with id: 0
+cquel> select_all
+[Log] Page qty is 1
+[Log] Tuple data: test, id: 1, tuple header offset: 0
+[Log] Tuple data: test2, id: 2, tuple header offset: 1
+[Log] Tuple data: test4, id: 4, tuple header offset: 2
+cquel> .exit
+```
+
+
+
+
 
 ### Where is this project atm
 

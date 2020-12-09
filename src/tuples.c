@@ -32,7 +32,7 @@ ResultSet* read_all_tuples(Page* page, LinePointer* lp, PageHeader* header) {
   return result;
 }
 
-bool insert_tuple(Page* page, PageHeader* page_header, char* data) {
+bool insert_tuple(Page* page, PageHeader* page_header, Tuple tuple) {
   if(page == NULL) {
     printf("Tried to insert tuple to null page \n");
     exit(EXIT_FAILURE);
@@ -48,15 +48,16 @@ bool insert_tuple(Page* page, PageHeader* page_header, char* data) {
   LinePointer lp = {tuple_offset, 0x00, sizeof(Tuple)};
 
   TupleHeader tuple_header = {page_header->page_id, line_pointers_qty(page_header)};
+  tuple.header = tuple_header;
 
-  Tuple row;
-  row.header = tuple_header;
-  row.id = tuple_header.lp_offset;
-  strncpy(row.data, data, strnlen(data, TUPLE_SIZE));
-  row.data[strnlen(data, TUPLE_SIZE) - 1] = '\0';
+  /* Tuple row; */
+  /* row.header = tuple_header; */
+  /* row.id = tuple_header.lp_offset; */
+  /* strncpy(row.data, data, strnlen(data, TUPLE_SIZE)); */
+  /* row.data[strnlen(data, TUPLE_SIZE) - 1] = '\0'; */
 
   // cpy rows
-  memcpy(page + lp.tuple_offset, &row, lp.tuple_length);
+  memcpy(page + lp.tuple_offset, &tuple, lp.tuple_length);
 
   page_header->upper_limit -= sizeof(Tuple);
 

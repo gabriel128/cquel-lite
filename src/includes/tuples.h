@@ -34,7 +34,7 @@ ResultSet* read_all_tuples(Page* page, LinePointer* lp, PageHeader* header);
  * Inserts as tuple in certain page and returns true
  * if it was inserted
  */
-bool insert_tuple(Page* page, PageHeader* page_header, char* data);
+bool insert_tuple(Page* page, PageHeader* page_header, Tuple tuple);
 
 /*
  * Frees allocation from a result set
