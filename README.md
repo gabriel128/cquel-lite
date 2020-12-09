@@ -41,6 +41,11 @@ Page structure
 +--------------------------------|-----------------+
 ```
 
+The Page header has metadata about the page, like the page_id, the lower limit offset and the upper limit offset. Then, Each line pointer points to a tuple
+such that removing and adding data into a page can be made dynamic and won't depend on the order of tuples. For Example Linp1 points to Tuple1
+and could be positioned any place in the page. Also, the first row is added at the end such that the rows grow backwards and the linepointers
+grow upwards making `free space = upper_limit - lower_limit`
+
 ### Buffer Pool
 
 Since atm the only thing cquel-lite can do is sequential scans on single tables, the replacement policy is just a modulo of the page_id.
