@@ -92,14 +92,6 @@ void test(Table* table) {
   free(table);
 }
 
-// TODO
-// - Add buffer pool
-// - Save Table metadata to file
-// - Add column structure
-// - Add row structre with sizes
-// - Handle db creation as a meta command
-// - Deal with multiple tables
-// - Add B-tree indexes
 int main(int argc, char** argv) {
   /* size_of_stuff(); */
 
